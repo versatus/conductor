@@ -1,6 +1,5 @@
-use conductor::{publisher::Publisher, subscriber::Subscriber};
+use conductor::{broker::Broker, publisher::{Publisher, PubStream}, subscriber::{Subscriber, SubStream}};
 use tokio::task;
-use conductor::broker::Broker;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

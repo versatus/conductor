@@ -1,7 +1,13 @@
 use tokio::net::TcpStream;
 use tokio::io::AsyncWriteExt;
+use crate::{HEADER_SIZE, TOPIC_SIZE_OFFSET};
 
-use crate::broker::{HEADER_SIZE, TOPIC_SIZE_OFFSET};
+#[async_trait::async_trait]
+pub trait PubStream {
+    type Topic;
+    type Message<'async_trait> where Self: 'async_trait;
+    async fn publish(&mut self, topic: Self::Topic, msg: Self::Message<'async_trait>) -> std::io::Result<()>; 
+}
 
 pub struct Publisher {
     stream: TcpStream,
@@ -12,8 +18,13 @@ impl Publisher {
         let stream = TcpStream::connect(uri).await?;
         Ok(Self { stream })
     }
+}
 
-    pub async fn publish(&mut self, topic: String, msg: &str) -> std::io::Result<()> {
+#[async_trait::async_trait]
+impl PubStream for Publisher {
+    type Topic = String;
+    type Message<'async_trait> = &'async_trait str;
+    async fn publish(&mut self, topic: Self::Topic, msg: Self::Message<'async_trait>) -> std::io::Result<()> {
         let topic_len = topic.len();
         let topic_len_bytes = topic_len.to_be_bytes();
         let message_len = msg.len();
