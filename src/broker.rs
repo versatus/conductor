@@ -17,6 +17,8 @@ impl Broker {
     pub async fn new(frontend_uri: &str, backend_uri: &str) -> std::io::Result<Self> {
         let frontend = Arc::new(TcpListener::bind(frontend_uri).await?);
         let backend = Arc::new(TcpListener::bind(backend_uri).await?);
+        println!("Broker receiving messages on {frontend_uri}...");
+        println!("Broker receiving subscriptions on {backend_uri}...");
         Ok(Self {
             frontend,
             backend,
@@ -59,6 +61,7 @@ impl Broker {
             loop {
                 tokio::select! {
                     Some(mut msg) = rx.recv() => {
+                        println!("Recieved new message, attempting to parse");
                         handle_message_parsing(&mut msg, subscriptions.clone()).await?;
                     }
 
