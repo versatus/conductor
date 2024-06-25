@@ -2,6 +2,11 @@ use tokio::net::TcpStream;
 use tokio::io::AsyncWriteExt;
 use crate::{HEADER_SIZE, TOPIC_SIZE_OFFSET};
 
+//TODO(asmith): Bound Topic to std::fmt::Display or another 
+// trait that guarantees it can be sha256 hashed and msg to serde::Serialize 
+// that way the publish method implementation can be default
+// may also want to compress payloads, though this is probably early optimization
+
 #[async_trait::async_trait]
 pub trait PubStream {
     type Topic;

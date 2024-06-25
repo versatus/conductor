@@ -26,7 +26,6 @@ impl Subscriber {
 #[async_trait::async_trait]
 impl SubStream for Subscriber {
     type Message = Vec<Vec<u8>>;
-
     async fn receive(&mut self) -> std::io::Result<Vec<Vec<u8>>> {
         let mut buffer = Vec::new();
         loop {

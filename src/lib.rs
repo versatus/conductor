@@ -7,7 +7,7 @@ pub mod subscriber;
 
 pub mod util {
     use crate::{HEADER_SIZE, TOPIC_SIZE_OFFSET};
-    use std::sync::Arc;
+    use std::{collections::HashSet, sync::Arc};
     use tokio::sync::Mutex;
     use tokio::net::TcpStream;
     use std::collections::HashMap;
@@ -46,18 +46,35 @@ pub mod util {
         while msg.len() >= HEADER_SIZE {
             let total_len = try_get_message_len(msg)?;
             if msg.len() >= total_len {
+                println!("Parsing message of length {}", msg.len());
                 let topic_len = try_get_topic_len(msg)?;
                 let (topic, message) = parse_next_message(total_len, topic_len, msg).await;
                 let subs = subscriptions.clone();
-                let guard = subs.lock().await;
-                if let Some(subscribers) = guard.get(&topic) {
-                    for subscriber in subscribers {
+                let mut guard = subs.lock().await;
+                if let Some(subscribers) = guard.get_mut(&topic) {
+                    let mut dead_streams = HashSet::new();
+                    for (i, subscriber) in subscribers.iter_mut().enumerate() {
                         let mut stream = subscriber.lock().await;
+                        println!("attemping to write to subscribers stream...");
                         if let Err(e) = stream.write_all(&message).await {
+                            if let Ok(addr) = stream.peer_addr() {
+                                println!("subscriber {} is dead, adding to dead_streams", addr.to_string());
+                            }
+                            dead_streams.insert(i);
                             eprintln!("Failed to write to socket: {e}");
                         }
+
+                        println!("Dropping lock on stream...");
+                        drop(stream);
                     }
+                    println!("Cleaning dead streams...");
+                    dead_streams.iter().for_each(|i| {
+                        subscribers.remove(*i);
+                    });
                 }
+
+                println!("Dropping lock on subs...");
+                drop(guard);
             }
         }
         Ok(())
