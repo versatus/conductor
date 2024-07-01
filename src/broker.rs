@@ -17,8 +17,8 @@ impl Broker {
     pub async fn new(frontend_uri: &str, backend_uri: &str) -> std::io::Result<Self> {
         let frontend = Arc::new(TcpListener::bind(frontend_uri).await?);
         let backend = Arc::new(TcpListener::bind(backend_uri).await?);
-        println!("Broker receiving messages on {frontend_uri}...");
-        println!("Broker receiving subscriptions on {backend_uri}...");
+        log::info!("Broker receiving messages on {frontend_uri}...");
+        log::info!("Broker receiving subscriptions on {backend_uri}...");
         Ok(Self {
             frontend,
             backend,
@@ -45,7 +45,7 @@ impl Broker {
                             break;
                         }
                         if tx.send(buffer[..n].to_vec()).await.is_err() {
-                            eprintln!("Channel closed");
+                            log::error!("Channel closed");
                             break;
                         }
                     }
@@ -61,7 +61,7 @@ impl Broker {
             loop {
                 tokio::select! {
                     Some(mut msg) = rx.recv() => {
-                        println!("Recieved new message, attempting to parse");
+                        log::info!("Recieved new message, attempting to parse");
                         handle_message_parsing(&mut msg, subscriptions.clone()).await?;
                     }
 

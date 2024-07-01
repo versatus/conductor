@@ -46,7 +46,7 @@ pub mod util {
         while msg.len() >= HEADER_SIZE {
             let total_len = try_get_message_len(msg)?;
             if msg.len() >= total_len {
-                println!("Parsing message of length {}", msg.len());
+                log::info!("Parsing message of length {}", msg.len());
                 let topic_len = try_get_topic_len(msg)?;
                 let (topic, message) = parse_next_message(total_len, topic_len, msg).await;
                 let subs = subscriptions.clone();
@@ -55,25 +55,25 @@ pub mod util {
                     let mut dead_streams = HashSet::new();
                     for (i, subscriber) in subscribers.iter_mut().enumerate() {
                         let mut stream = subscriber.lock().await;
-                        println!("attemping to write to subscribers stream...");
+                        log::info!("attemping to write to subscribers stream...");
                         if let Err(e) = stream.write_all(&message).await {
                             if let Ok(addr) = stream.peer_addr() {
-                                println!("subscriber {} is dead, adding to dead_streams", addr.to_string());
+                                log::info!("subscriber {} is dead, adding to dead_streams", addr.to_string());
                             }
                             dead_streams.insert(i);
-                            eprintln!("Failed to write to socket: {e}");
+                            log::error!("Failed to write to socket: {e}");
                         }
 
-                        println!("Dropping lock on stream...");
+                        log::info!("Dropping lock on stream...");
                         drop(stream);
                     }
-                    println!("Cleaning dead streams...");
+                    log::info!("Cleaning dead streams...");
                     dead_streams.iter().for_each(|i| {
                         subscribers.remove(*i);
                     });
                 }
 
-                println!("Dropping lock on subs...");
+                log::info!("Dropping lock on subs...");
                 drop(guard);
             }
         }
@@ -84,7 +84,7 @@ pub mod util {
         subscriptions: Arc<Mutex<HashMap<String, Vec<Arc<Mutex<TcpStream>>>>>>,
         stream: TcpStream,
     ) -> std::io::Result<()> {
-        println!("New subscription received");
+        log::info!("New subscription received");
         let subs = subscriptions.clone();
         tokio::spawn(async move {
             let stream = Arc::new(Mutex::new(stream));
@@ -97,7 +97,7 @@ pub mod util {
             })?;
             let topics = String::from_utf8_lossy(&buffer[..n]).to_string();
             let topic_list: Vec<String> = topics.split(',').map(|s| s.trim().to_string()).collect();
-            println!("Topics subscribed to: {:?}", topic_list);
+            log::info!("Topics subscribed to: {:?}", topic_list);
             let mut guard = subs.lock().await;
             for topic in topic_list {
                 guard.entry(topic).or_insert_with(Vec::new).push(stream.clone());

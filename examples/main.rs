@@ -12,14 +12,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut subscriber_1 = Subscriber::new("0.0.0.0:5556", vec!["hello".to_string()]).await?;
     task::spawn(async move {
         loop {
-            match subscriber_1.receive().await {
-                Ok(messages) => {
-                    for message in messages {
-                        println!("Subscriber-1 Received: {:?}", String::from_utf8_lossy(&message));
+            tokio::select! {
+                result = subscriber_1.receive() => {
+                    match result {
+                        Ok(messages) => {
+                            for message in messages {
+                                log::info!("Subscriber-1 Received: {:?}", String::from_utf8_lossy(&message));
+                            }
+                        }
+                        Err(e) => {
+                            log::error!("Error receiving message: {}", e);
+                            break;
+                        }
                     }
-                }
-                Err(e) => {
-                    eprintln!("Error receiving message: {}", e);
+                },
+                _ = tokio::signal::ctrl_c() => {
+                    log::info!("Received kill signal");
                     break;
                 }
             }
@@ -30,14 +38,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut subscriber_2 = Subscriber::new("0.0.0.0:5556", vec!["goodbye".to_string()]).await?;
     task::spawn(async move {
         loop {
-            match subscriber_2.receive().await {
-                Ok(messages) => {
-                    for message in messages {
-                        println!("Subscriber-2 Received: {:?}", String::from_utf8_lossy(&message));
+            tokio::select! {
+                result = subscriber_2.receive() => {
+                    match result {
+                        Ok(messages) => {
+                            for message in messages {
+                                log::info!("Subscriber-2 Received: {:?}", String::from_utf8_lossy(&message));
+                            }
+                        }
+                        Err(e) => {
+                            log::error!("Error receiving message: {}", e);
+                            break;
+                        }
                     }
-                }
-                Err(e) => {
-                    eprintln!("Error receiving message: {}", e);
+                },
+                _ = tokio::signal::ctrl_c() => {
+                    log::error!("Received kill signal");
                     break;
                 }
             }
