@@ -35,25 +35,44 @@ impl Broker {
         let subscriptions = self.topics.clone();
         let frontend_task = tokio::spawn(async move {
             loop {
-                let (mut stream, _) = frontend.accept().await?;
-                let tx = tx.clone();
-                tokio::spawn(async move {
-                    loop {
-                        let mut buffer = [0; 1024];
-                        let n = stream.read(&mut buffer).await?;
-                        if n == 0 {
-                            break;
-                        }
-                        if tx.send(buffer[..n].to_vec()).await.is_err() {
-                            log::error!("Channel closed");
-                            break;
-                        }
+                match frontend.accept().await {
+                    Ok((mut stream, addr)) => {
+                        log::info!("Successfully accepted stream from {addr:?}");
+                        let tx = tx.clone();
+                        tokio::spawn(async move {
+                            loop {
+                                let mut buffer = [0; 1024];
+                                match stream.read(&mut buffer).await {
+                                    Ok(n) => {
+                                        if n == 0 {
+                                            log::warn!("Buffer is empty, breaking loop");
+                                            break;
+                                        }
+                                        match tx.send(buffer[..n].to_vec()).await {
+                                            Err(e) => {
+                                                log::error!("Channel closed: {e}");
+                                                break;
+                                            }
+                                            _ => {
+                                                log::info!("Successfully transferred {n} bytes to backend...");
+                                            }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        log::info!("Error reading stream to buffer: {e}");
+                                        break;
+                                    }
+                                }
+                            }
+                            Ok::<(), std::io::Error>(())
+                        });
                     }
-
-                    Ok::<(), std::io::Error>(())
-                });
+                    Err(e) => {
+                        log::error!("Error accepting stream: {e}");
+                        break;
+                    }
+                }
             }
-
             Ok::<(), std::io::Error>(())
         });
 
@@ -62,11 +81,23 @@ impl Broker {
                 tokio::select! {
                     Some(mut msg) = rx.recv() => {
                         log::info!("Received new message, attempting to parse");
-                        handle_message_parsing(&mut msg, subscriptions.clone()).await?;
+                        match handle_message_parsing(&mut msg, subscriptions.clone()).await {
+                            Err(e) => {
+                                log::error!("Error handling message parsing: {e}");
+                            }
+                            _ => {
+                                log::info!("Successfully parsed message...");
+                            }
+                        }
                     }
 
                     Ok((stream, _)) = backend.accept() => {
-                        handle_new_subscription(subscriptions.clone(), stream).await?;
+                        match handle_new_subscription(subscriptions.clone(), stream).await {
+                            Err(e) => log::error!("Error adding new subscriber: {e}"),
+                            _ => {
+                                log::info!("Successfully added new subscriber...");
+                            }
+                        };
                     }
                 }
             }

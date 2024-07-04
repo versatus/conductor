@@ -49,9 +49,12 @@ pub mod util {
                 log::info!("Parsing message of length {}", msg.len());
                 let topic_len = try_get_topic_len(msg)?;
                 let (topic, message) = parse_next_message(total_len, topic_len, msg).await;
+                log::info!("Message Topic: {topic}");
+                log::info!("Message {message:?}");
                 let subs = subscriptions.clone();
                 let mut guard = subs.lock().await;
                 if let Some(subscribers) = guard.get_mut(&topic) {
+                    log::info!("Found {} subscribers to topic {topic}", subscribers.len());
                     let mut dead_streams = HashSet::new();
                     for (i, subscriber) in subscribers.iter_mut().enumerate() {
                         let mut stream = subscriber.lock().await;
