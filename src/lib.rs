@@ -55,7 +55,7 @@ pub mod util {
                     let mut dead_streams = HashSet::new();
                     for (i, subscriber) in subscribers.iter_mut().enumerate() {
                         let mut stream = subscriber.lock().await;
-                        log::info!("attemping to write to subscribers stream...");
+                        log::info!("attemping to write to topic {} for subscribers {:?} stream...", topic, stream.peer_addr());
                         if let Err(e) = stream.write_all(&message).await {
                             if let Ok(addr) = stream.peer_addr() {
                                 log::info!("subscriber {} is dead, adding to dead_streams", addr.to_string());

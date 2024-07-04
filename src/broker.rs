@@ -61,7 +61,7 @@ impl Broker {
             loop {
                 tokio::select! {
                     Some(mut msg) = rx.recv() => {
-                        log::info!("Recieved new message, attempting to parse");
+                        log::info!("Received new message, attempting to parse");
                         handle_message_parsing(&mut msg, subscriptions.clone()).await?;
                     }
 
