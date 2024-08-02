@@ -28,7 +28,7 @@ impl Broker {
 
     pub async fn start(&self) -> std::io::Result<()> {
 
-        let (tx, mut rx) = mpsc::channel(1024);
+        let (tx, mut rx) = mpsc::channel(4096);
 
         let frontend = self.frontend.clone();
         let backend = self.backend.clone();
@@ -41,7 +41,7 @@ impl Broker {
                         let tx = tx.clone();
                         tokio::spawn(async move {
                             loop {
-                                let mut buffer = [0; 1024];
+                                let mut buffer = [0; 4096];
                                 match stream.read(&mut buffer).await {
                                     Ok(n) => {
                                         if n == 0 {
@@ -110,4 +110,3 @@ impl Broker {
         Ok(())
     }
 }
-
